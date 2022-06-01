@@ -1,10 +1,11 @@
 from time import time
 import pygame
-import re
 pygame.font.init()
+pygame.mixer.init() # gaming sound
 import random
 import sys
 from pygame.locals import *
+WINGAME=False
 font = pygame.font.SysFont('arial', 40)
 def terminate():
     pygame.quit()
@@ -16,6 +17,7 @@ def drawText(text, font, surface, x, y):
     textrect.topleft = (x, y)
     surface.blit(textobj, textrect)
 def waitForPlayerToPressKey():
+    WINGAME=False
     while True:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -30,7 +32,7 @@ scrrr_width=800
 scrrr_height =560
 GAMEOVER = False
 #4 Xử lý lỗi tải hình ảnh
-LOG = 'tài liệu:{}Phương pháp trong:{}Lỗi'.format(__file__,__name__)
+LOG = 'File:{}NotFound:{}Error'.format(__file__,__name__)
 class Map():
     #3 Lưu tên của hai bức tranh có màu sắc khác nhau
     map_names_list = [IMAGE_PATH + 'map1.png', IMAGE_PATH + 'map2.png']
@@ -116,7 +118,7 @@ class PeaBullet(pygame.sprite.Sprite):
     def __init__(self,peashooter):
         self.live = True
         self.image = pygame.image.load('imgs/peabullet.png')
-        self.damage = 50
+        self.damage = 60
         self.speed  = 10
         self.rect = self.image.get_rect()
         self.rect.x = peashooter.rect.x + 60
@@ -140,6 +142,19 @@ class PeaBullet(pygame.sprite.Sprite):
                 if zombie.hp <= 0:
                     zombie.live = False
                     self.nextLevel()
+     #8danh boss
+    def hit_Boss(self):
+        global WINGAME
+        for zombie in MainGame.Boss_list:
+            if pygame.sprite.collide_rect(self,zombie):
+                self.live = False
+                zombie.hp -= self.damage
+                if zombie.hp <= 0:
+                    zombie.live = False
+                    WINGAME=True
+                    MainGame().gameOver()
+                    
+                    
     #7 đột phá
     def nextLevel(self):
         MainGame.score += 20
@@ -169,6 +184,7 @@ class Zombie(pygame.sprite.Sprite):
         self.stop = False
     #9 di chuyển zombie
     def move_zombie(self):
+        global GAMEOVER
         if self.live and not self.stop:
             self.rect.x -= self.speed
             if self.rect.x < -80:
@@ -202,6 +218,48 @@ class Zombie(pygame.sprite.Sprite):
     #9 Nạp zombie vào bản đồ
     def display_zombie(self):
         MainGame.window.blit(self.image,self.rect)
+class ZombieBoss(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        super(ZombieBoss, self).__init__()
+        # self.image = pygame.image.load('imgs/zombie.png')
+        self.image = pygame.image.load('imgs/boss1.jpg')
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y-40
+        self.hp = 15000
+        self.damage = 10
+        self.speed = 1
+        self.live = True
+        self.stop = False
+   
+    def move_zombie(self):
+        if self.live and not self.stop:
+            self.rect.x -= self.speed
+            if self.rect.x < -80:
+                GAMEOVER=True
+                
+                MainGame().gameOver()
+
+    def hit_plant(self):
+        for plant in MainGame.plants_list:
+            if pygame.sprite.collide_rect(self,plant):
+                self.stop = True
+                self.eat_plant(plant)
+    
+    def eat_plant(self,plant):
+        plant.hp -= self.damage
+        
+        if plant.hp <= 0:
+            a = plant.rect.y // 80 - 1
+            b = plant.rect.x // 80
+            map = MainGame.map_list[a][b]
+            map.can_grow = True
+            plant.live = False
+            
+            self.stop = False
+
+    def display_zombie(self):
+        MainGame.window.blit(self.image,self.rect)
 #1 主程序
 class MainGame():
     #2 Tạo cấp độ, điểm số, điểm số còn lại, tiền
@@ -214,6 +272,7 @@ class MainGame():
     plants_list = []
     peabullet_list = []
     zombie_list = []
+    Boss_list=[]
     count_zombie = 0
     produce_zombie = 100
     def init_window(self):
@@ -230,7 +289,7 @@ class MainGame():
 
     #2 Đang tải các mẹo trợ giúp
     def load_help_text(self):
-        text1 = self.draw_text('1. Press the button on the left to create a sunflower 2. Press the right button to shoot peas', 26, (255, 0, 0))
+        text1 = self.draw_text('1.Leftmouse for sunflower                                             2.Rightmouse for shooter', 30, (255, 150, 0))
         MainGame.window.blit(text1, (5, 5))
 
     #3 Khởi tạo điểm tọa độ
@@ -285,6 +344,7 @@ class MainGame():
                 b.move_bullet()
                 # v1.9 đạn bắn trúng thây ma ko
                 b.hit_zombie()
+                b.hit_Boss()
             else:
                 MainGame.peabullet_list.remove(b)
 
@@ -311,14 +371,14 @@ class MainGame():
                     if map.can_grow and MainGame.money >= 50:
                         sunflower = Sunflower(map.position[0], map.position[1])
                         MainGame.plants_list.append(sunflower)
-                        print('Độ dài danh sách nhà máy hiện tại:{}'.format(len(MainGame.plants_list)))
+                        print('plant number:{}'.format(len(MainGame.plants_list)))
                         map.can_grow = False
                         MainGame.money -= 50
                 elif e.button == 3:
                     if map.can_grow and MainGame.money >= 50:
                         peashooter = PeaShooter(map.position[0], map.position[1])
                         MainGame.plants_list.append(peashooter)
-                        print('Current flower list length:{}'.format(len(MainGame.plants_list)))
+                        print('plant number:{}'.format(len(MainGame.plants_list)))
                         map.can_grow = False
                         MainGame.money -= 50
 
@@ -337,8 +397,26 @@ class MainGame():
                 zombie.move_zombie()
                 # v2.0 phương thức để gọi liệu có va chạm với thực vật hay không
                 zombie.hit_plant()
+                
             else:
                 MainGame.zombie_list.remove(zombie)
+     #10 boss
+    def init_zombieBoss(self):
+        for i in range(2, 6):           
+            zombie = ZombieBoss(800 , i * 80)
+            MainGame.Boss_list.append(zombie)
+
+   
+    def load_zombieBoss(self):
+        zombie=MainGame.Boss_list[1]
+        if zombie.live:
+            zombie.display_zombie()
+            zombie.move_zombie()
+                
+            zombie.hit_plant()
+        else:
+            # code win game
+            MainGame.gameOver
     #1 Bắt đầu trò chơi
     def start_game(self):
         #1 Cửa sổ khởi tạo
@@ -348,15 +426,18 @@ class MainGame():
         self.init_map()
         #9 Gọi phương thức khởi tạo thây ma
         self.init_zombies()
+        self.init_zombieBoss()
         #1 Miễn là trò chơi chưa kết thúc, nó vẫn tiếp tục lặp lại
+        #mở nhạc nền
+        pygame.mixer.music.load('imgs/grasswalk.mp3')
+        pygame.mixer.music.play(-1,0,0)
         while True:
             #1 Kết xuất nền trắng
             MainGame.window.fill((255, 255, 255))
             #2 Văn bản được hiển thị và vị trí tọa độ
-            MainGame.window.blit(self.draw_text('Current amount $: {}'.format(MainGame.money), 26, (255, 0, 0)), (500, 40))
+            MainGame.window.blit(self.draw_text('Monney $: {}'.format(MainGame.money), 26, (255, 0, 0)), (500, 40))
             MainGame.window.blit(self.draw_text(
-                'level{}，score{},score man moi{}'.format(MainGame.shaoguan, MainGame.score, MainGame.remnant_score), 26,
-                (255, 0, 0)), (5, 40))
+                'Level   {}         Score {}        Remainscore{}'.format(MainGame.shaoguan, MainGame.score,1500- MainGame.score), 26,(255, 0, 0)), (5, 40))
             self.load_help_text()
             self.load_map()
             self.load_plants()
@@ -368,21 +449,32 @@ class MainGame():
             if MainGame.count_zombie == MainGame.produce_zombie:
                 self.init_zombies()
                 MainGame.count_zombie = 0
+            if(MainGame.score >1500): 
+                self.init_zombieBoss()
+                self.load_zombieBoss()
             pygame.time.wait(8)
             pygame.display.update()
 
     #10 Kết thúc chương trình
     def gameOver(self):
+        global WINGAME
+        global GAMEOVER
         windowSurface = pygame.display.set_mode((scrrr_width, scrrr_height))
         windowSurface.blit((pygame.image.load('imgs/grassland.png')),(0,0))
         drawText('score: %s' % (MainGame.score), font, windowSurface, 10, 30)
         if GAMEOVER ==True:
             MainGame.window.blit(self.draw_text('game over', 50, (255, 0, 0)), (300, 200))
             drawText('YOU HAVE BEEN KISSED BY THE ZOMMBIE', font, windowSurface, (scrrr_width / 4)- 100, (scrrr_height / 3) + 100)
+        elif WINGAME==True:
+            GAMEOVER = True
+            drawText('You Won', font, windowSurface, (scrrr_width / 4)- 100, (scrrr_height / 3) + 100)
         else:
             drawText('The game is stopping', font, windowSurface, (scrrr_width / 4)- 100, (scrrr_height / 3) + 100)
-        drawText('Press enter to continue or escape to exit', font, windowSurface, (scrrr_width / 4) - 100, (scrrr_height / 3) + 150)
+            drawText('Press enter to continue or escape to exit', font, windowSurface, (scrrr_width / 4) - 100, (scrrr_height / 3) + 150)
         pygame.display.update()
+        pygame.mixer.music.stop()
+        gameOverSound = pygame.mixer.Sound('imgs/gameover.wav')
+        gameOverSound.play()
         waitForPlayerToPressKey()
 if __name__ == '__main__':
     game = MainGame()
