@@ -1,5 +1,6 @@
 from time import time
 import pygame
+import re
 pygame.font.init()
 import random
 import sys
@@ -229,7 +230,7 @@ class MainGame():
 
     #2 Đang tải các mẹo trợ giúp
     def load_help_text(self):
-        text1 = self.draw_text('1. Nhấn nút bên trái để tạo bông hoa hướng dương 2. Nhấn nút bên phải để bắn hạt đậu', 26, (255, 0, 0))
+        text1 = self.draw_text('1. Press the button on the left to create a sunflower 2. Press the right button to shoot peas', 26, (255, 0, 0))
         MainGame.window.blit(text1, (5, 5))
 
     #3 Khởi tạo điểm tọa độ
@@ -317,7 +318,7 @@ class MainGame():
                     if map.can_grow and MainGame.money >= 50:
                         peashooter = PeaShooter(map.position[0], map.position[1])
                         MainGame.plants_list.append(peashooter)
-                        print('Độ dài danh sách hoa sx hiện tại:{}'.format(len(MainGame.plants_list)))
+                        print('Current flower list length:{}'.format(len(MainGame.plants_list)))
                         map.can_grow = False
                         MainGame.money -= 50
 
@@ -352,7 +353,7 @@ class MainGame():
             #1 Kết xuất nền trắng
             MainGame.window.fill((255, 255, 255))
             #2 Văn bản được hiển thị và vị trí tọa độ
-            MainGame.window.blit(self.draw_text('Số tiền hiện tại $: {}'.format(MainGame.money), 26, (255, 0, 0)), (500, 40))
+            MainGame.window.blit(self.draw_text('Current amount $: {}'.format(MainGame.money), 26, (255, 0, 0)), (500, 40))
             MainGame.window.blit(self.draw_text(
                 'level{}，score{},score man moi{}'.format(MainGame.shaoguan, MainGame.score, MainGame.remnant_score), 26,
                 (255, 0, 0)), (5, 40))
